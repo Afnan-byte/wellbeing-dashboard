@@ -218,30 +218,22 @@ def teacher_settings(request):
     return render(request, 'teacher_settings.html')
 
 @login_required
-def download_csv(request):
-    profile = UserProfile.objects.get(user=request.user)
-    
-    if profile.user_type != 'teacher':
-        return redirect('student_checkin')
-    
-    # Create CSV response
+def moods_csv(request):
+    # No Content-Disposition → Google Sheets can read it
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="student_moods_{datetime.now().strftime("%Y%m%d")}.csv"'
-    
+
     writer = csv.writer(response)
     writer.writerow(['Student Name', 'Date', 'Mood', 'Comment', 'Timestamp'])
-    
-    # Get data from last 30 days
+
     thirty_days_ago = datetime.now().date() - timedelta(days=30)
-    entries = MoodEntry.objects.filter(date__gte=thirty_days_ago).select_related('user').order_by('-date')
-    
+    entries = MoodEntry.objects.filter(date__gte=thirty_days_ago).select_related('user')
+
     for entry in entries:
         writer.writerow([
             entry.user.get_full_name() or entry.user.username,
-            entry.date.strftime('%Y-%m-%d'),
+            entry.date,
             entry.mood,
             entry.comment or '',
-            entry.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            entry.timestamp
         ])
-    
     return response
