@@ -7,6 +7,9 @@ from django.http import HttpResponse
 from datetime import datetime, timedelta
 import csv
 from .models import UserProfile, MoodEntry
+import gspread
+from google.oauth2.service_account import Credentials
+
 
 def login_view(request):
     if request.method == 'POST':
@@ -237,3 +240,41 @@ def moods_csv(request):
             entry.timestamp
         ])
     return response
+def push_to_google_sheet():
+    # Path to your JSON key
+    creds = Credentials.from_service_account_file(
+        'credentials/service_account.json',
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+    )
+
+    client = gspread.authorize(creds)
+
+    # OPEN GOOGLE SHEET
+    sheet = client.open_by_key("1Q-cL9MfNygceQxKaGkgeq1Y77L9b3MA-Zk2xQSaCIUQ").sheet1
+
+    # WRITE HEADER
+    sheet.update('A1:E1', [['Student Name', 'Date', 'Mood', 'Comment', 'Timestamp']])
+
+    # FETCH DATABASE DATA
+    entries = MoodEntry.objects.select_related('user').all()
+
+    data = []
+    for entry in entries:
+        data.append([
+            entry.user.get_full_name() or entry.user.username,
+            str(entry.date),
+            entry.mood,
+            entry.comment or '',
+            entry.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        ])
+
+    # WRITE ALL ROWS
+    sheet.update(f'A2:E{len(data)+1}', data)
+
+@login_required
+def update_google_sheet(request):
+    push_to_google_sheet()
+    return HttpResponse("Google Sheet updated successfully!")
