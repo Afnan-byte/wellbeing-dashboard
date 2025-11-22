@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Students{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'teacher_dashboard' %}" class="sidebar-icon" title="Dashboard">📊</a>
+    <a href="{% url 'teacher_results' %}" class="sidebar-icon" title="Results">📋</a>
+    <a href="{% url 'teacher_students' %}" class="sidebar-icon active" title="Students">👥</a>
+    <a href="{% url 'teacher_settings' %}" class="sidebar-icon" title="Settings">⚙️</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content" style="padding: 30px;">
+    <div style="max-width: 1000px; margin: 0 auto;">
+        <h1 style="font-size: 32px; margin-bottom: 30px; color: #2c3e50;">Students</h1>
+        
+        <div class="card">
+            <ul class="student-list">
+                {% for student in students %}
+                <li class="student-item">
+                    <div class="student-name">{{ student.name }}</div>
+                    <div class="student-mood">
+                        <span style="font-size: 20px; margin-right: 8px;">{{ student.emoji }}</span>
+                        <span>{{ student.latest_mood|title }}</span>
+                        {% if student.date %}
+                        <span style="margin-left: 10px; color: #999; font-size: 12px;">({{ student.date|date:"M d" }})</span>
+                        {% endif %}
+                    </div>
+                </li>
+                {% empty %}
+                <li style="padding: 40px; text-align: center; color: #999;">No students found</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'teacher_dashboard' %}" class="sidebar-icon" title="Dashboard">📊</a>
+    <a href="{% url 'teacher_results' %}" class="sidebar-icon" title="Results">📋</a>
+    <a href="{% url 'teacher_students' %}" class="sidebar-icon" title="Students">👥</a>
+    <a href="{% url 'teacher_settings' %}" class="sidebar-icon active" title="Settings">⚙️</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content" style="padding: 30px;">
+    <div style="max-width: 600px; margin: 0 auto;">
+        <h1 style="font-size: 32px; margin-bottom: 30px; color: #2c3e50;">Settings</h1>
+        
+        {% if success %}
+        <div class="alert alert-success">Profile updated successfully!</div>
+        {% endif %}
+        
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">Profile</h2>
+            
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Name</label>
+                    <input type="text" name="first_name" value="{{ user.first_name }}" style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email</label>
+                    <input type="email" name="email" value="{{ user.email }}" style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px;">
+                </div>
+                
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e1e8ed;">
+                
+                <h3 style="margin-bottom: 15px; color: #2c3e50;">Change Password</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">New Password (leave blank to keep current)</label>
+                    <input type="password" name="new_password" style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px;">
+                </div>
+                
+                <button type="submit" class="btn" style="width: 100%;">Update</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

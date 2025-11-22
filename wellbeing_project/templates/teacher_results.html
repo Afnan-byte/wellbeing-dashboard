@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Results{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'teacher_dashboard' %}" class="sidebar-icon" title="Dashboard">📊</a>
+    <a href="{% url 'teacher_results' %}" class="sidebar-icon active" title="Results">📋</a>
+    <a href="{% url 'teacher_students' %}" class="sidebar-icon" title="Students">👥</a>
+    <a href="{% url 'teacher_settings' %}" class="sidebar-icon" title="Settings">⚙️</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content" style="padding: 30px;">
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <h1 style="font-size: 32px; margin-bottom: 30px; color: #2c3e50;">Detailed Results - Last 7 Days</h1>
+        
+        <div class="card">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 15px; text-align: left; font-weight: 600;">Student</th>
+                        <th style="padding: 15px; text-align: left; font-weight: 600;">Date</th>
+                        <th style="padding: 15px; text-align: left; font-weight: 600;">Mood</th>
+                        <th style="padding: 15px; text-align: left; font-weight: 600;">Comment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 15px;">{{ entry.user.get_full_name|default:entry.user.username }}</td>
+                        <td style="padding: 15px;">{{ entry.date|date:"M d, Y" }}</td>
+                        <td style="padding: 15px;">{{ entry.get_emoji }} {{ entry.get_mood_display }}</td>
+                        <td style="padding: 15px;">{{ entry.comment|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="padding: 40px; text-align: center; color: #999;">No entries in the last 7 days</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Daily Check-In - WellCheck{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'student_checkin' %}" class="sidebar-icon active" title="Check-In">✓</a>
+    <a href="{% url 'student_history' %}" class="sidebar-icon" title="History">📊</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content">
+    <div class="card" style="max-width: 800px; margin: 40px auto;">
+        <div class="card-header">
+            <div class="card-title">Student Daily Check-In</div>
+        </div>
+        
+        {% if success %}
+        <div class="alert alert-success" style="text-align: center; font-size: 18px;">
+            ✅ Your check-in has been recorded! Thank you for sharing.
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{% url 'student_history' %}" class="btn">View My History</a>
+        </div>
+        {% else %}
+        <form method="POST" id="checkinForm">
+            {% csrf_token %}
+            
+            <div class="mood-grid">
+                <div class="mood-item" onclick="selectMood(this, 'happy')">
+                    <span class="mood-emoji">😊</span>
+                    <div class="mood-label">Happy</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'ecstatic')">
+                    <span class="mood-emoji">😄</span>
+                    <div class="mood-label">Ecstatic</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'inspired')">
+                    <span class="mood-emoji">✨</span>
+                    <div class="mood-label">Inspired</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'calm')">
+                    <span class="mood-emoji">😌</span>
+                    <div class="mood-label">Calm</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'good')">
+                    <span class="mood-emoji">👍</span>
+                    <div class="mood-label">Good</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'numb')">
+                    <span class="mood-emoji">😐</span>
+                    <div class="mood-label">Numb</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'worried')">
+                    <span class="mood-emoji">😟</span>
+                    <div class="mood-label">Worried</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'lethargic')">
+                    <span class="mood-emoji">😴</span>
+                    <div class="mood-label">Lethargic</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'grumpy')">
+                    <span class="mood-emoji">😠</span>
+                    <div class="mood-label">Grumpy</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'sad')">
+                    <span class="mood-emoji">😢</span>
+                    <div class="mood-label">Sad</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'stressed')">
+                    <span class="mood-emoji">😰</span>
+                    <div class="mood-label">Stressed</div>
+                </div>
+                <div class="mood-item" onclick="selectMood(this, 'angry')">
+                    <span class="mood-emoji">😡</span>
+                    <div class="mood-label">Angry</div>
+                </div>
+            </div>
+            
+            <input type="hidden" name="mood" id="selectedMood" required>
+            
+            <div style="margin: 24px 0;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Tell us more (optional)</label>
+                <textarea name="comment" rows="4" placeholder="Share what's on your mind..." style="width: 100%; padding: 12px; border: 2px solid #e1e8ed; border-radius: 8px; font-size: 14px;"></textarea>
+            </div>
+            
+            <button type="submit" class="btn" style="width: 100%;">Submit</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let selectedMoodBtn = null;
+
+function selectMood(btn, mood) {
+    if (selectedMoodBtn) {
+        selectedMoodBtn.classList.remove('selected');
+    }
+    btn.classList.add('selected');
+    selectedMoodBtn = btn;
+    document.getElementById('selectedMood').value = mood;
+}
+</script>
+{% endblock %}
