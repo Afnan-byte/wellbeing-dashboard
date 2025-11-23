@@ -2,34 +2,15 @@
 set -o errexit
 
 pip install -r requirements.txt
-
-# Create migrations
-python manage.py makemigrations
-python manage.py makemigrations dashboard
-
-# Apply migrations
-python manage.py migrate
-
-# Collect static files
 python manage.py collectstatic --no-input
+```
 
-# Create superuser automatically (non-interactive)
-echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@example.com', 'admin123')" | python manage.py shell
+## **Step 3: Add to Google Sheet**
 
-# Create test users
-echo "
-from django.contrib.auth.models import User
-from dashboard.models import UserProfile
+Manually add test users to your Google Sheet:
 
-# Student
-if not User.objects.filter(email='afnan.messaging@gmail.com').exists():
-    student = User.objects.create_user(username='afnan', email='afnan.messaging@gmail.com', password='test123', first_name='Afnan')
-    UserProfile.objects.create(user=student, user_type='student')
-    print('Student created')
-
-# Teacher
-if not User.objects.filter(email='teacher@wellcheck.com').exists():
-    teacher = User.objects.create_user(username='teacher', email='teacher@wellcheck.com', password='test123', first_name='Teacher')
-    UserProfile.objects.create(user=teacher, user_type='teacher')
-    print('Teacher created')
-" | python manage.py shell
+**Users sheet:**
+```
+username | email | password | user_type | first_name
+afnan | afnan.messaging@gmail.com | 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 | student | Afnan
+teacher | teacher@wellcheck.com | 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 | teacher | Teacher

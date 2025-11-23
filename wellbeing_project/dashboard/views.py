@@ -1,68 +1,47 @@
 import os
 import json
 import csv
+import hashlib
 from datetime import datetime, timedelta
 
 from django.shortcuts import render, redirect
-from django.conf import settings
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
-from django.db.models import Count
 from django.http import HttpResponse
-
 import gspread
-from google.oauth2.service_account import Credentials
-
-from .models import UserProfile, MoodEntry
 
 
 # ---------- Google Sheets Config ----------
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
 SHEET_ID = "1Q-cL9MfNygceQxKaGkgeq1Y77L9b3MA-Zk2xQSaCIUQ"
-# ------------------------------------------
-
-
-def _get_credentials_path():
-    """Return path to local service_account.json."""
-    base = settings.BASE_DIR
-    try:
-        return str(base / "credentials" / "service_account.json")
-    except TypeError:
-        return os.path.join(base, "credentials", "service_account.json")
 
 
 def load_gspread_client():
-    """
-    Loads gspread client using:
-      - GOOGLE_SERVICE_ACCOUNT_JSON (Render)
-      - or local credentials file
-    """
-    # Try environment variable JSON first (Render)
-    env_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or os.environ.get("SERVICE_ACCOUNT_JSON")
-
+    """Load gspread client from environment variable or local file."""
+    env_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    
     if env_json:
         try:
             info = json.loads(env_json)
             client = gspread.service_account_from_dict(info)
             return client
         except Exception as e:
-            raise Exception(f"Failed to load service account from environment variable: {e}")
+            raise Exception(f"Failed to load from env: {e}")
+    
+    raise Exception("GOOGLE_SERVICE_ACCOUNT_JSON not found in environment")
 
-    # Try local file
-    cred_path = _get_credentials_path()
-    if os.path.exists(cred_path):
-        try:
-            client = gspread.service_account(filename=cred_path)
-            return client
-        except Exception as e:
-            raise Exception(f"Failed to load service account from {cred_path}: {e}")
 
-    raise Exception("Service account JSON not found. Add GOOGLE_SERVICE_ACCOUNT_JSON environment variable.")
+def get_sheet():
+    """Get the Google Sheet workbook."""
+    client = load_gspread_client()
+    return client.open_by_key(SHEET_ID)
+
+
+def hash_password(password):
+    """Hash password with SHA256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(stored_hash, password):
+    """Verify password against stored hash."""
+    return stored_hash == hash_password(password)
 
 
 # ----------------- Authentication Views -----------------
@@ -76,245 +55,268 @@ def login_view(request):
             return render(request, 'login.html', {'error': 'Please enter a valid email.'})
 
         try:
-            user_obj = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return render(request, 'login.html', {'error': 'No account found with this email'})
-
-        user = authenticate(request, username=user_obj.username, password=password)
-        if user is None:
-            return render(request, 'login.html', {'error': 'Invalid password'})
-
-        try:
-            profile = UserProfile.objects.get(user=user)
-            if profile.user_type != user_type:
+            sheet = get_sheet()
+            users_ws = sheet.worksheet('Users')
+            all_users = users_ws.get_all_records()
+            
+            # Find user by email
+            user = None
+            for u in all_users:
+                if u['email'] == email:
+                    user = u
+                    break
+            
+            if not user:
+                return render(request, 'login.html', {'error': 'No account found with this email'})
+            
+            # Verify password
+            if not verify_password(user['password'], password):
+                return render(request, 'login.html', {'error': 'Invalid password'})
+            
+            # Check user type
+            if user['user_type'] != user_type:
                 return render(request, 'login.html', {
-                    'error': f"Account is registered as {profile.user_type}, not {user_type}"
+                    'error': f"Account is registered as {user['user_type']}, not {user_type}"
                 })
-        except UserProfile.DoesNotExist:
-            return render(request, 'login.html', {'error': 'Profile missing for this account'})
-
-        login(request, user)
-
-        return redirect('student_checkin' if user_type == 'student' else 'teacher_dashboard')
+            
+            # Store in session
+            request.session['user_email'] = user['email']
+            request.session['username'] = user['username']
+            request.session['user_name'] = user['first_name']
+            request.session['user_type'] = user['user_type']
+            
+            return redirect('student_checkin' if user_type == 'student' else 'teacher_dashboard')
+            
+        except Exception as e:
+            return render(request, 'login.html', {'error': f'Error: {str(e)}'})
 
     return render(request, 'login.html')
 
 
 def logout_view(request):
-    logout(request)
+    request.session.flush()
     return redirect('login')
 
 
 # ----------------- Student Views -----------------
-@login_required
 def student_checkin(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'student':
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
+    if request.session.get('user_type') != 'student':
         return redirect('teacher_dashboard')
-
-    today = datetime.now().date()
-    has_checked = MoodEntry.objects.filter(user=request.user, date=today).exists()
 
     if request.method == 'POST':
         mood = request.POST.get('mood')
         comment = request.POST.get('comment', '')
+        username = request.session.get('username')
+        
+        try:
+            sheet = get_sheet()
+            moods_ws = sheet.worksheet('MoodEntries')
+            
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            date = datetime.now().strftime('%Y-%m-%d')
+            
+            moods_ws.append_row([username, date, mood, comment, timestamp])
+            
+            return render(request, 'student_checkin.html', {'success': True})
+        except Exception as e:
+            return render(request, 'student_checkin.html', {'error': str(e)})
 
-        MoodEntry.objects.update_or_create(
-            user=request.user,
-            date=today,
-            defaults={'mood': mood, 'comment': comment}
-        )
-
-        return render(request, 'student_checkin.html', {'success': True})
-
-    return render(request, 'student_checkin.html', {'already_checked': has_checked})
+    return render(request, 'student_checkin.html')
 
 
-@login_required
 def student_history(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'student':
-        return redirect('teacher_dashboard')
-
-    entries = MoodEntry.objects.filter(user=request.user).order_by('-date')[:30]
-
-    chart_data = [
-        {
-            'date': entry.date.strftime('%b %d'),
-            'mood': entry.mood,
-            'emoji': entry.get_emoji() if hasattr(entry, 'get_emoji') else ''
-        }
-        for entry in reversed(entries)
-    ]
-
-    return render(request, 'student_history.html', {
-        'entries': entries,
-        'chart_data': chart_data
-    })
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
+    username = request.session.get('username')
+    
+    try:
+        sheet = get_sheet()
+        moods_ws = sheet.worksheet('MoodEntries')
+        all_records = moods_ws.get_all_records()
+        
+        # Filter by username and sort by date
+        user_entries = [r for r in all_records if r['username'] == username]
+        user_entries.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        entries = user_entries[:30]
+        
+        return render(request, 'student_history.html', {'entries': entries})
+    except Exception as e:
+        return render(request, 'student_history.html', {'entries': [], 'error': str(e)})
 
 
 # ----------------- Teacher Views -----------------
-@login_required
 def teacher_dashboard(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'teacher':
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
+    if request.session.get('user_type') != 'teacher':
         return redirect('student_checkin')
 
-    today = datetime.now().date()
-    week_ago = today - timedelta(days=7)
+    try:
+        sheet = get_sheet()
+        users_ws = sheet.worksheet('Users')
+        moods_ws = sheet.worksheet('MoodEntries')
+        
+        all_users = users_ws.get_all_records()
+        all_moods = moods_ws.get_all_records()
+        
+        # Count students
+        students = [u for u in all_users if u['user_type'] == 'student']
+        total_students = len(students)
+        
+        # Today's data
+        today = datetime.now().strftime('%Y-%m-%d')
+        today_moods = [m for m in all_moods if m['date'] == today]
+        
+        # Mood counts
+        mood_data = {}
+        for mood_entry in today_moods:
+            mood = mood_entry['mood']
+            mood_data[mood] = mood_data.get(mood, 0) + 1
+        
+        # Students checked in today
+        checked_usernames = set([m['username'] for m in today_moods])
+        checked_in_today = len(checked_usernames)
+        
+        # Low mood students
+        low_moods = ['sad', 'stressed', 'angry', 'worried']
+        low_mood_entries = [m for m in today_moods if m['mood'] in low_moods]
+        
+        engagement_percent = round((checked_in_today / total_students * 100)) if total_students else 0
+        
+        context = {
+            'teacher_name': request.session.get('user_name', 'Teacher'),
+            'total_students': total_students,
+            'checked_in_today': checked_in_today,
+            'engagement_percent': engagement_percent,
+            'mood_data': mood_data,
+            'low_mood_entries': low_mood_entries,
+            'low_mood_count': len(low_mood_entries),
+        }
+        
+        return render(request, 'teacher_dashboard.html', context)
+    except Exception as e:
+        return render(request, 'teacher_dashboard.html', {'error': str(e)})
 
-    students = User.objects.filter(userprofile__user_type='student')
-    total_students = students.count()
 
-    checked_today = MoodEntry.objects.filter(date=today).values('user').distinct().count()
-    mood_counts = MoodEntry.objects.filter(date=today).values('mood').annotate(count=Count('mood'))
-
-    mood_data = {m['mood']: m['count'] for m in mood_counts}
-    total = sum(mood_data.values())
-
-    mood_percentages = {
-        mood: round((count / total * 100), 1) if total > 0 else 0
-        for mood, count in mood_data.items()
-    }
-
-    low_moods = ['sad', 'stressed', 'angry', 'worried']
-    low_entries = MoodEntry.objects.filter(date=today, mood__in=low_moods).select_related('user')
-
-    weekly_moods = MoodEntry.objects.filter(date__gte=week_ago).values('mood').annotate(count=Count('mood'))
-
-    context = {
-        'total_students': total_students,
-        'checked_in_today': checked_today,
-        'engagement_percent': round((checked_today / total_students * 100)) if total_students else 0,
-        'mood_data': mood_data,
-        'mood_percentages': mood_percentages,
-        'low_mood_entries': low_entries,
-        'low_mood_count': low_entries.count(),
-        'weekly_moods': weekly_moods[:3],
-    }
-
-    return render(request, 'teacher_dashboard.html', context)
-
-
-@login_required
 def teacher_results(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'teacher':
-        return redirect('student_checkin')
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
+    try:
+        sheet = get_sheet()
+        moods_ws = sheet.worksheet('MoodEntries')
+        all_records = moods_ws.get_all_records()
+        
+        # Last 7 days
+        week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        entries = [r for r in all_records if r['date'] >= week_ago]
+        entries.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return render(request, 'teacher_results.html', {'entries': entries})
+    except Exception as e:
+        return render(request, 'teacher_results.html', {'entries': [], 'error': str(e)})
 
-    week_ago = datetime.now().date() - timedelta(days=7)
-    entries = MoodEntry.objects.filter(date__gte=week_ago).select_related('user')
 
-    return render(request, 'teacher_results.html', {'entries': entries})
-
-
-@login_required
 def teacher_students(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'teacher':
-        return redirect('student_checkin')
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
+    try:
+        sheet = get_sheet()
+        users_ws = sheet.worksheet('Users')
+        moods_ws = sheet.worksheet('MoodEntries')
+        
+        all_users = users_ws.get_all_records()
+        all_moods = moods_ws.get_all_records()
+        
+        students = [u for u in all_users if u['user_type'] == 'student']
+        
+        student_list = []
+        for student in students:
+            username = student['username']
+            user_moods = [m for m in all_moods if m['username'] == username]
+            
+            if user_moods:
+                user_moods.sort(key=lambda x: x['timestamp'], reverse=True)
+                latest = user_moods[0]
+                student_list.append({
+                    'name': student['first_name'] or username,
+                    'latest_mood': latest['mood'],
+                    'emoji': get_mood_emoji(latest['mood']),
+                    'date': latest['date']
+                })
+            else:
+                student_list.append({
+                    'name': student['first_name'] or username,
+                    'latest_mood': 'No data',
+                    'emoji': '❓',
+                    'date': None
+                })
+        
+        return render(request, 'teacher_students.html', {'students': student_list})
+    except Exception as e:
+        return render(request, 'teacher_students.html', {'students': [], 'error': str(e)})
 
-    students = User.objects.filter(userprofile__user_type='student')
 
-    student_list = []
-    for s in students:
-        latest = MoodEntry.objects.filter(user=s).order_by('-date').first()
-        student_list.append({
-            'name': s.get_full_name() or s.username,
-            'latest_mood': latest.mood if latest else "No data",
-            'emoji': latest.get_emoji() if latest else "❓",
-            'date': latest.date if latest else None
-        })
-
-    return render(request, 'teacher_students.html', {'students': student_list})
-
-
-@login_required
 def teacher_settings(request):
-    profile = UserProfile.objects.get(user=request.user)
-    if profile.user_type != 'teacher':
-        return redirect('student_checkin')
-
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
     if request.method == 'POST':
-        user = request.user
-        user.first_name = request.POST.get('first_name', user.first_name)
-        user.email = request.POST.get('email', user.email)
-        user.save()
-
-        if request.POST.get('new_password'):
-            user.set_password(request.POST['new_password'])
-            user.save()
-
+        # Update session data
+        request.session['user_name'] = request.POST.get('first_name', request.session.get('user_name'))
         return render(request, 'teacher_settings.html', {'success': True})
-
+    
     return render(request, 'teacher_settings.html')
 
 
-# ----------------- CSV Export -----------------
-@login_required
-def moods_csv(request):
-    response = HttpResponse(content_type='text/csv')
-    writer = csv.writer(response)
-    writer.writerow(['Student Name', 'Date', 'Mood', 'Comment', 'Timestamp'])
-
-    entries = MoodEntry.objects.filter(
-        date__gte=datetime.now().date() - timedelta(days=30)
-    ).select_related('user')
-
-    for e in entries:
-        writer.writerow([
-            e.user.get_full_name() or e.user.username,
-            e.date,
-            e.mood,
-            e.comment or '',
-            e.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        ])
-
-    return response
-
-
-# ----------------- Google Sheets Sync -----------------
-def push_to_google_sheet():
-    """Push all MoodEntry rows to Google Sheets."""
+# ----------------- CSV Download -----------------
+def download_csv(request):
+    if 'user_email' not in request.session:
+        return redirect('login')
+    
     try:
-        client = load_gspread_client()
+        sheet = get_sheet()
+        moods_ws = sheet.worksheet('MoodEntries')
+        all_records = moods_ws.get_all_records()
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="moods_{datetime.now().strftime("%Y%m%d")}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Student', 'Date', 'Mood', 'Comment', 'Timestamp'])
+        
+        for entry in all_records:
+            writer.writerow([
+                entry['username'],
+                entry['date'],
+                entry['mood'],
+                entry.get('comment', ''),
+                entry['timestamp']
+            ])
+        
+        return response
     except Exception as e:
-        return False, f"Credentials error: {e}"
-
-    try:
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        sheet.clear()
-
-        header = ["Student Name", "Date", "Mood", "Comment", "Timestamp"]
-        entries = MoodEntry.objects.select_related('user').order_by('-timestamp')
-
-        rows = [
-            [
-                e.user.get_full_name() or e.user.username,
-                str(e.date),
-                e.mood,
-                e.comment or '',
-                e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            ]
-            for e in entries
-        ]
-
-        sheet.update("A1:E1", [header])
-        if rows:
-            sheet.update(f"A2:E{len(rows)+1}", rows)
-
-        return True, "Google Sheet updated successfully"
-
-    except Exception as e:
-        return False, f"Google API error: {e}"
+        return HttpResponse(f"Error: {str(e)}", status=500)
 
 
-@login_required
-def update_google_sheet(request):
-    success, msg = push_to_google_sheet()
-    return HttpResponse(msg if success else f"Error updating sheet: {msg}", status=200 if success else 500)
+def get_mood_emoji(mood):
+    """Get emoji for mood."""
+    emojis = {
+        'happy': '😊', 'ecstatic': '😄', 'inspired': '✨',
+        'calm': '😌', 'good': '👍', 'numb': '😐',
+        'worried': '😟', 'lethargic': '😴', 'grumpy': '😠',
+        'sad': '😢', 'stressed': '😰', 'angry': '😡'
+    }
+    return emojis.get(mood, '😊')
 
 
-# ----------------- Health / Home Endpoint -----------------
+# ----------------- Home -----------------
 def home(request):
     return HttpResponse("Wellbeing Dashboard running")
