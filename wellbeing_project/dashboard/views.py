@@ -1,5 +1,4 @@
 import os
-import json
 import csv
 from datetime import datetime, timedelta
 
@@ -11,58 +10,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count
 from django.http import HttpResponse
 
-import gspread
-from google.oauth2.service_account import Credentials
-
 from .models import UserProfile, MoodEntry
-
-
-# ---------- Google Sheets Config ----------
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-SHEET_ID = "1Q-cL9MfNygceQxKaGkgeq1Y77L9b3MA-Zk2xQSaCIUQ"
-# ------------------------------------------
-
-
-def _get_credentials_path():
-    """Return path to local service_account.json."""
-    base = settings.BASE_DIR
-    try:
-        return str(base / "credentials" / "service_account.json")
-    except TypeError:
-        return os.path.join(base, "credentials", "service_account.json")
-
-
-def load_gspread_client():
-    """
-    Loads gspread client using:
-      - GOOGLE_SERVICE_ACCOUNT_JSON (Render)
-      - or local credentials file
-    """
-    # Try environment variable JSON first (Render)
-    env_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or os.environ.get("SERVICE_ACCOUNT_JSON")
-
-    if env_json:
-        try:
-            info = json.loads(env_json)
-            client = gspread.service_account_from_dict(info)
-            return client
-        except Exception as e:
-            raise Exception(f"Failed to load service account from environment variable: {e}")
-
-    # Try local file
-    cred_path = _get_credentials_path()
-    if os.path.exists(cred_path):
-        try:
-            client = gspread.service_account(filename=cred_path)
-            return client
-        except Exception as e:
-            raise Exception(f"Failed to load service account from {cred_path}: {e}")
-
-    raise Exception("Service account JSON not found. Add GOOGLE_SERVICE_ACCOUNT_JSON environment variable.")
 
 
 # ----------------- Authentication Views -----------------
@@ -271,48 +219,6 @@ def moods_csv(request):
         ])
 
     return response
-
-
-# ----------------- Google Sheets Sync -----------------
-def push_to_google_sheet():
-    """Push all MoodEntry rows to Google Sheets."""
-    try:
-        client = load_gspread_client()
-    except Exception as e:
-        return False, f"Credentials error: {e}"
-
-    try:
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        sheet.clear()
-
-        header = ["Student Name", "Date", "Mood", "Comment", "Timestamp"]
-        entries = MoodEntry.objects.select_related('user').order_by('-timestamp')
-
-        rows = [
-            [
-                e.user.get_full_name() or e.user.username,
-                str(e.date),
-                e.mood,
-                e.comment or '',
-                e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            ]
-            for e in entries
-        ]
-
-        sheet.update("A1:E1", [header])
-        if rows:
-            sheet.update(f"A2:E{len(rows)+1}", rows)
-
-        return True, "Google Sheet updated successfully"
-
-    except Exception as e:
-        return False, f"Google API error: {e}"
-
-
-@login_required
-def update_google_sheet(request):
-    success, msg = push_to_google_sheet()
-    return HttpResponse(msg if success else f"Error updating sheet: {msg}", status=200 if success else 500)
 
 
 # ----------------- Health / Home Endpoint -----------------

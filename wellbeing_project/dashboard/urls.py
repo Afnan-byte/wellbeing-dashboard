@@ -11,6 +11,5 @@ urlpatterns = [
     path('teacher/students/', views.teacher_students, name='teacher_students'),
     path('teacher/settings/', views.teacher_settings, name='teacher_settings'),
 path('moods_csv/', views.moods_csv, name='moods_csv'),
-path("update_sheet/", views.update_google_sheet, name="update_google_sheet")
 
 ]
