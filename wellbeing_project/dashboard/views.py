@@ -2,13 +2,23 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from datetime import datetime, timedelta
+from oauth2client.service_account import ServiceAccountCredentials
 import csv
 from .models import UserProfile, MoodEntry
 import gspread
 from google.oauth2.service_account import Credentials
+
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+creds = ServiceAccountCredentials.from_json_keyfile_name(
+    settings.BASE_DIR / "credentials/service_account.json",
+    scopes=SCOPES
+)
 
 
 def login_view(request):
