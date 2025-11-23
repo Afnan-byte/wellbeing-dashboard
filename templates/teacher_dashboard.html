@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'teacher_dashboard' %}" class="sidebar-icon active" title="Dashboard">📊</a>
+    <a href="{% url 'teacher_results' %}" class="sidebar-icon" title="Results">📋</a>
+    <a href="{% url 'teacher_students' %}" class="sidebar-icon" title="Students">👥</a>
+    <a href="{% url 'teacher_settings' %}" class="sidebar-icon" title="Settings">⚙️</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content" style="padding: 30px;">
+    <div style="max-width: 1400px; margin: 0 auto;">
+        <h1 style="font-size: 32px; margin-bottom: 30px; color: #2c3e50;">Class Mood Dashboard</h1>
+        
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value">{{ checked_in_today }}</div>
+                <div class="stat-label">Checked In Today</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value">{{ engagement_percent }}%</div>
+                <div class="stat-label">Engagement Rate</div>
+            </div>
+            
+            <div class="stat-card" style="border-left-color: #e74c3c;">
+                <div class="stat-value">{{ low_mood_count }}</div>
+                <div class="stat-label">Students Need Support</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Class Mood Breakdown</div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😊</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.happy|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Happy</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😄</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.ecstatic|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Ecstatic</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😌</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.calm|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Calm</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😟</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.worried|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Worried</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😢</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.sad|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Sad</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😰</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.stressed|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Stressed</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">😡</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.angry|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Angry</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 32px; margin-bottom: 5px;">👍</div>
+                    <div style="font-weight: 600; font-size: 20px; color: #2c3e50;">{{ mood_data.good|default:0 }}</div>
+                    <div style="font-size: 12px; color: #666;">Good</div>
+                </div>
+            </div>
+        </div>
+        
+        {% if low_mood_count > 0 %}
+        <div class="alert alert-warning">
+            <h3 style="margin-bottom: 15px; font-size: 18px;">⚠️ Students Need Support</h3>
+            <ul style="margin-left: 20px;">
+                {% for entry in low_mood_entries %}
+                <li style="margin: 8px 0;">
+                    <strong>{{ entry.user.get_full_name|default:entry.user.username }}</strong> - 
+                    {{ entry.get_mood_display }} {{ entry.get_emoji }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

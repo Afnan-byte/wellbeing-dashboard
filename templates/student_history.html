@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}My Mood History{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <a href="{% url 'student_checkin' %}" class="sidebar-icon" title="Check-In">✓</a>
+    <a href="{% url 'student_history' %}" class="sidebar-icon active" title="History">📊</a>
+    <div style="flex: 1;"></div>
+    <a href="{% url 'logout' %}" class="sidebar-icon" title="Logout">🚪</a>
+</div>
+
+<div class="main-content">
+    <div style="max-width: 1000px; margin: 40px auto;">
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">My Mood History</h2>
+            
+            {% if entries %}
+            <div style="margin-bottom: 30px;">
+                {% for entry in entries %}
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="font-size: 36px;">{{ entry.get_emoji }}</span>
+                        <div>
+                            <h3 style="font-size: 18px; margin-bottom: 5px; color: #2c3e50;">{{ entry.get_mood_display }}</h3>
+                            <p style="color: #666; font-size: 14px;">{{ entry.date|date:"F d, Y" }}</p>
+                        </div>
+                    </div>
+                    {% if entry.comment %}
+                    <div style="flex: 1; margin-left: 20px; padding-left: 20px; border-left: 2px solid #dee2e6;">
+                        <p style="color: #555; font-style: italic;">{{ entry.comment }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 60px 20px; color: #999;">
+                <p style="font-size: 18px; margin-bottom: 20px;">📊 No check-ins yet</p>
+                <p>Start tracking your mood today!</p>
+                <a href="{% url 'student_checkin' %}" class="btn" style="margin-top: 20px;">Check In Now</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
