@@ -25,7 +25,7 @@ ALLOWED_HOSTS = [
 
 
 # ---------------------------------------------------------
-# APPLICATIONS (Removed admin & auth - not needed)
+# APPLICATIONS
 # ---------------------------------------------------------
 INSTALLED_APPS = [
     'django.contrib.contenttypes',
@@ -37,7 +37,7 @@ INSTALLED_APPS = [
 
 
 # ---------------------------------------------------------
-# MIDDLEWARE (Removed auth middleware)
+# MIDDLEWARE
 # ---------------------------------------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -73,7 +73,7 @@ WSGI_APPLICATION = 'wellbeing_project.wsgi.application'
 
 
 # ---------------------------------------------------------
-# DATABASE - Using signed cookies for sessions (no DB needed)
+# NO DATABASE - Using cookie sessions
 # ---------------------------------------------------------
 DATABASES = {}
 
@@ -99,11 +99,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Whitenoise for serving static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # ---------------------------------------------------------
 # GOOGLE SHEETS CONFIG
 # ---------------------------------------------------------
-GOOGLE_SHEET_ID = "1TyaCIHmIJ501S77rguNyoVKMje1viPJnrW5J40fFGos"
+GOOGLE_SHEET_ID = "1Q-cL9MfNygceQxKaGkgeq1Y77L9b3MA-Zk2xQSaCIUQ"
