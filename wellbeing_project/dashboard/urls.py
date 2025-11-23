@@ -10,5 +10,7 @@ urlpatterns = [
     path('teacher/results/', views.teacher_results, name='teacher_results'),
     path('teacher/students/', views.teacher_students, name='teacher_students'),
     path('teacher/settings/', views.teacher_settings, name='teacher_settings'),
-    path('teacher/download-csv/', views.download_csv, name='download_csv'),
+path('moods_csv/', views.moods_csv, name='moods_csv'),
+path("update_sheet/", views.update_google_sheet, name="update_google_sheet")
+
 ]
