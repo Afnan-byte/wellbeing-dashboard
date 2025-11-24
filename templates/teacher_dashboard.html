@@ -16,6 +16,7 @@
     <div style="max-width: 1400px; margin: 0 auto;">
         <h1 style="font-size: 32px; margin-bottom: 30px; color: #2c3e50;">Class Mood Dashboard</h1>
         
+        
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-value">{{ checked_in_today }}</div>
@@ -37,6 +38,21 @@
             <div class="card-header">
                 <div class="card-title">Class Mood Breakdown</div>
             </div>
+           <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+    <a href="{% url 'moods_csv' %}" 
+       style="
+           background: #3498db;
+           color: white;
+           padding: 8px 16px;
+           border-radius: 6px;
+           text-decoration: none;
+           font-size: 14px;
+           font-weight: 600;
+           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+       ">
+        ⬇ Download CSV (30 Days)
+    </a>
+</div>
             
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
                 <div style="text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">

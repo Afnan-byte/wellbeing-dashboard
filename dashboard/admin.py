@@ -4,7 +4,6 @@ from import_export.admin import ImportExportModelAdmin
 from .models import UserProfile, MoodEntry
 
 
-# ------------------ UserProfile Admin ------------------
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ['user', 'user_type', 'class_group']
@@ -12,7 +11,6 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'class_group']
 
 
-# ------------------ MoodEntry Export Resource ------------------
 class MoodEntryResource(resources.ModelResource):
     class Meta:
         model = MoodEntry
@@ -26,9 +24,8 @@ class MoodEntryResource(resources.ModelResource):
         )
 
 
-# ------------------ MoodEntry Admin WITH EXPORT ------------------
 @admin.register(MoodEntry)
-class MoodEntryAdmin(ImportExportModelAdmin):   # 👈 enables Export & Import
+class MoodEntryAdmin(ImportExportModelAdmin):   
     resource_class = MoodEntryResource
 
     list_display = ['user', 'mood', 'mood_emoji', 'date', 'timestamp']

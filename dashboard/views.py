@@ -13,7 +13,6 @@ from django.http import HttpResponse
 from .models import UserProfile, MoodEntry
 
 
-# ----------------- Authentication Views -----------------
 def login_view(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
@@ -53,7 +52,6 @@ def logout_view(request):
     return redirect('login')
 
 
-# ----------------- Student Views -----------------
 @login_required
 def student_checkin(request):
     profile = UserProfile.objects.get(user=request.user)
@@ -101,7 +99,6 @@ def student_history(request):
     })
 
 
-# ----------------- Teacher Views -----------------
 @login_required
 def teacher_dashboard(request):
     profile = UserProfile.objects.get(user=request.user)
@@ -198,7 +195,6 @@ def teacher_settings(request):
     return render(request, 'teacher_settings.html')
 
 
-# ----------------- CSV Export -----------------
 @login_required
 def moods_csv(request):
     response = HttpResponse(content_type='text/csv')
@@ -221,6 +217,5 @@ def moods_csv(request):
     return response
 
 
-# ----------------- Health / Home Endpoint -----------------
 def home(request):
     return HttpResponse("Wellbeing Dashboard running")
